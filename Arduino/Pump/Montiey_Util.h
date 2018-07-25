@@ -12,4 +12,15 @@ class HandyTimer {
 		unsigned long lastTime;
 };
 
+class MicroTimer {
+    public:
+        MicroTimer(unsigned long);
+        bool trigger();
+        bool updateInterval(unsigned long);
+        unsigned long interval;
+    private:
+        unsigned long checkTime;
+        unsigned long lastTime;
+};
+
 #endif

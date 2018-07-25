@@ -20,3 +20,23 @@ bool HandyTimer::updateInterval(unsigned long a){
 	interval = a;
 	return true;
 }
+
+MicroTimer::MicroTimer(unsigned long a){
+    interval = a;
+}
+
+bool MicroTimer::trigger(){
+    checkTime = micros();
+    if(checkTime - lastTime >= interval){
+        lastTime = checkTime;
+        return true;
+    }
+    return false;
+}
+bool MicroTimer::updateInterval(unsigned long a){
+    if(interval == a){
+        return false;
+    }
+    interval = a;
+    return true;
+}
