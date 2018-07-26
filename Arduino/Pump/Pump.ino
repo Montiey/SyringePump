@@ -42,7 +42,7 @@ char * dataLine = (char *) calloc(MAX_LINE_BYTES, 1);    //A single command line
 
 AccelStepper s(1, STEP, DIR); //1 = "driver mode" (operate with pulse and direction pins)
 //MicroTimer stepTimer(0);
-HandyTimer recalculationInterval(125); //How often to poll the stepper for new steps (NOT step speed) (HIGHER intervals seem to yield smoother results
+HandyTimer recalculationInterval(125); //How often to perform (lengthy) calculations and set the updated speed
 //bool stepState;
 int commandIndex = 0;   //Current line of text
 unsigned long offsetTime = 0;   //Time at which the routine was started (with button)
