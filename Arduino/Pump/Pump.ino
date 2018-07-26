@@ -2,8 +2,20 @@
 /// Units: Seconds, uL / sec
 /// General notes: Serial prints take alot of time, so plan on using the pump without them.
 
-/// Comment out to disable needless Serial prints, uncomment to enable
-#define DOSERIAL
+////////////////////////
+/// Uncomment #define NOSERIALto remove ALL serial commands.
+#define NOSERIAL//////
+////////////////////////
+
+#ifndef NOSERIAL
+//////////////////////
+/// Comment out #define DOSERIAL to remove the majority of spam serial prints
+#define DOSERIAL//////
+//////////////////////
+#endif
+
+
+#define FLIP_DIRECTION true //Flip the stepper DIR pin
 
 //#include "AccelStepper.h"
 #include "Montiey_Util.h"
@@ -24,13 +36,15 @@ const char * flagQB = "qb";
 #define BUTTON 5
 #define STEP 4
 #define DIR 2
-#define UL_PER_STEP 0.01973325157   // Calculated value for 1/32 microstepping, 0.9deg stepper & 0.8mm rod
+#define UL_PER_STEP 0.6314640502   // FULL STEP - 0.9deg stepper & 0.8mm rod
+#define USTEP_RATE 32
 
 char * dataLine = (char *) calloc(MAX_LINE_BYTES, 1);    //A single command line may contain 64 characters. Increase if more memory is availible.
 
 //AccelStepper s(1, STEP, DIR); //1 = "driver mode" (operate with pulse and direction pins)
 MicroTimer stepTimer(0);
 HandyTimer recalculationInterval(125); //How often to poll the stepper for new steps (NOT step speed) (HIGHER intervals seem to yield smoother results
+bool stepState;
 int commandIndex = 0;   //Current line of text
 unsigned long offsetTime = 0;   //Time at which the routine was started (with button)
 
@@ -49,7 +63,7 @@ void getLine() {
     }
     
     char c = ' ';    //some irrelevant starting value
-    byte i = 0; //counter starts @ 0 + 1 = 1
+    byte i = 0; //counter
     
     char x;
     for(x = 0; x < MAX_LINE_BYTES; x++){
@@ -80,7 +94,9 @@ void getLine() {
 
 void endGame() {    //Stops everything until the button is pressed (i.e. after commands complete, or after an error to retry)
     delay(1000);
+    #ifndef NOSERIAL
     Serial.println("END - Waiting for button");
+    #endif
     while (!digitalRead(BUTTON));   //do a little debouncing
     delay(1000);
     while (digitalRead(BUTTON));
@@ -88,11 +104,19 @@ void endGame() {    //Stops everything until the button is pressed (i.e. after c
 }
 
 void doOpenLoopStuff() { //everything that needs to be done as often as possible
-    s.runSpeed(); //Check if AccelStepper should send a step to the stepper based on the set speed
+    if(stepTimer.trigger()){
+        digitalWrite(STEP, stepState); //Bool since digitalRead is slow
+        stepState = !stepState;
+    }
 }
 
 void setQ(float q) {
-    float stepSpeed = (1.0 / UL_PER_STEP) * q;
+    if(q == 0){
+        stepTimer.disable = true;
+    } else{
+        stepTimer.disable = false;
+    }
+    float stepSpeed = (1.0 / (UL_PER_STEP / USTEP_RATE)) * q;
     #ifdef DOSERIAL
     Serial.print("Set q: ");
     Serial.print(q);
@@ -100,25 +124,38 @@ void setQ(float q) {
     Serial.println(stepSpeed);
     #endif
     //s.setSpeed(stepSpeed);
-    stepTimer.updateInterval(1000/
+    stepTimer.updateInterval((1000.0 / stepSpeed) * 1000);
+}
+
+float mapFloat(float x, float in_min, float in_max, float out_min, float out_max){
+ return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 void setup() {
+    #ifndef NOSERIAL
     Serial.begin(115200);
+    #endif
     #ifdef DOSERIAL
     Serial.println("======== Begin ========");
     #endif
     pinMode(LED, OUTPUT);
     pinMode(BUTTON, INPUT);
+    pinMode(STEP, OUTPUT);
+    pinMode(DIR, OUTPUT);
+    digitalWrite(DIR, FLIP_DIRECTION);    //change direction
     digitalWrite(BUTTON, HIGH); //internal pullup
 
     if (!SD.begin()) {
+        #ifndef NOSERIAL
         Serial.println("SD card not present");
+        #endif
         endGame();
     }
     dataFile = SD.open("commands.txt");
     if (!dataFile) {
+        #ifndef NOSERIAL
         Serial.println("commands.txt not found");
+        #endif
         endGame();
     }
 
@@ -126,7 +163,7 @@ void setup() {
     //s.setSpeed(0);  //Don't move anything do start with
 
     while (digitalRead(BUTTON)) {   //wait for the button to begin the routine
-        doOpenLoopStuff();
+        //Nothing happens
     }
     offsetTime = millis();
 }
@@ -149,7 +186,7 @@ void loop() {
         #endif
 
         //Get data
-        ta = atof(strstr(dataLine, flagTA) + 2);
+        ta = atof(strstr(dataLine, flagTA) + 2);    //get buff @ the index of the flag buff, then parse it and return a float.
         qa = atof(strstr(dataLine, flagQA) + 2);
         tb = atof(strstr(dataLine, flagTB) + 2);
         qb = atof(strstr(dataLine, flagQB) + 2);
@@ -180,7 +217,7 @@ void loop() {
         while (1) { //Loop for the duration of the gradient command
 
             if (recalculationInterval.trigger()) {
-                float newQ = (float) map((millis() - startTime), 0.0, (tb - ta) * 1000.0, qa, qb);
+                float newQ = (float) mapFloat((millis() - startTime), 0.0, (tb - ta) * 1000.0, qa, qb);
                 setQ(newQ);
             }
 

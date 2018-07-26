@@ -6,6 +6,7 @@ HandyTimer::HandyTimer(unsigned long a){
 }
 
 bool HandyTimer::trigger(){
+    if(disable) return false;
 	checkTime = millis();
 	if(checkTime - lastTime >= interval){
 		lastTime = checkTime;
@@ -26,6 +27,7 @@ MicroTimer::MicroTimer(unsigned long a){
 }
 
 bool MicroTimer::trigger(){
+    if(disable) return false;
     checkTime = micros();
     if(checkTime - lastTime >= interval){
         lastTime = checkTime;

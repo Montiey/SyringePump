@@ -7,6 +7,7 @@ class HandyTimer {
 		bool trigger();
 		bool updateInterval(unsigned long);
 		unsigned long interval;
+        bool disable;
 	private:
 		unsigned long checkTime;
 		unsigned long lastTime;
@@ -18,6 +19,7 @@ class MicroTimer {
         bool trigger();
         bool updateInterval(unsigned long);
         unsigned long interval;
+        bool disable;
     private:
         unsigned long checkTime;
         unsigned long lastTime;
