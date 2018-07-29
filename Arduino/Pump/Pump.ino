@@ -1,10 +1,12 @@
 /// Copyright 2018 Jason Harriot
-/// Units: Seconds, uL / sec
+/// Units: Seconds, uL (mm3) / sec
 /// General notes: Serial prints take alot of time, so plan on using the pump without them.
+
+//////// vvv USER CONFIGURATION vvv ////////
 
 ////////////////////////
 /// Uncomment #define NOSERIALto remove ALL serial commands.
-#define NOSERIAL//////
+//#define NOSERIAL//////
 ////////////////////////
 
 #ifndef NOSERIAL
@@ -14,7 +16,22 @@
 //////////////////////
 #endif
 
-#define FLIP_DIRECTION true //Flip the stepper DIR pin
+
+//////////////////////
+#define ID 18.5    //Inner diameter of the syringe
+#define PITCH 0.8  //Pitch of the threaded rod
+#define STEPS 400 //Steps per revolution of the motor
+#define USTEP_RATE 32   //Set this to the mirostepping setting of the driver
+
+
+//////////////////////
+const float UL_PER_STEP = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(ID/2, 2)));   //mm3 / 
+
+//////////////////////
+
+
+
+////////
 
 #include "AccelStepper.h"
 #include "Montiey_Util.h"
@@ -35,8 +52,6 @@ const char * flagQB = "qb";
 #define BUTTON 5
 #define STEP 4
 #define DIR 2
-#define UL_PER_STEP 0.6314640502   // FULL STEP - 0.9deg stepper & 0.8mm rod
-#define USTEP_RATE 32
 
 char * dataLine = (char *) calloc(MAX_LINE_BYTES, 1);    //A single command line may contain 64 characters. Increase if more memory is availible.
 
@@ -103,20 +118,11 @@ void endGame() {    //Stops everything until the button is pressed (i.e. after c
 }
 
 void doOpenLoopStuff() { //everything that needs to be done as often as possible
-//    if(stepTimer.trigger()){
-//        digitalWrite(STEP, stepState); //Bool since digitalRead is slow
-//        stepState = !stepState;
-//    }
     s.runSpeed();
 }
 
 void setQ(float q) {
-//    if(q == 0){
-//        stepTimer.disable = true;
-//    } else{
-//        stepTimer.disable = false;
-//    }
-    float stepSpeed = (1.0 / (UL_PER_STEP / USTEP_RATE)) * q;
+    float stepSpeed = UL_PER_STEP * q;
 #ifdef DEBUGSERIAL
     Serial.print("Set q: ");
     Serial.print(q);
@@ -124,7 +130,6 @@ void setQ(float q) {
     Serial.println(stepSpeed);
 #endif
     s.setSpeed(stepSpeed);
-//    stepTimer.updateInterval((1000.0 / stepSpeed) * 1000);
 }
 
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
@@ -134,15 +139,14 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 void setup() {
 #ifndef NOSERIAL
     Serial.begin(115200);
+    Serial.print("µL per step: ");
+    Serial.println(UL_PER_STEP);
 #endif
 #ifdef DEBUGSERIAL
     Serial.println("======== Begin ========");
 #endif
     pinMode(LED, OUTPUT);
     pinMode(BUTTON, INPUT);
-//    pinMode(STEP, OUTPUT);
-//    pinMode(DIR, OUTPUT);
-//    digitalWrite(DIR, FLIP_DIRECTION);    //change direction
     digitalWrite(BUTTON, HIGH); //internal pullup
 
     if (!SD.begin()) {
