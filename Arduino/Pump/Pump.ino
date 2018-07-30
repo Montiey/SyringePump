@@ -5,13 +5,13 @@
 //////// vvv USER CONFIGURATION vvv ////////
 
 ////////////////////////
-/// Uncomment #define NOSERIALto remove ALL serial commands.
+/// Removes ALL serial commands (for production)
 //#define NOSERIAL//////
 ////////////////////////
 
 #ifndef NOSERIAL
 //////////////////////
-/// Comment out #define DEBUGSERIAL to remove the majority of spam serial prints
+/// Enables spammy debugging prints (for testing) (if not already disabled above)
 #define DEBUGSERIAL//////
 //////////////////////
 #endif
@@ -21,11 +21,12 @@
 #define ID 18.5    //Inner diameter of the syringe
 #define PITCH 0.8  //Pitch of the threaded rod
 #define STEPS 400 //Steps per revolution of the motor
-#define USTEP_RATE 32   //Set this to the mirostepping setting of the driver
+#define USTEP_RATE 32   //This sets digital pins to control microstepping (1, 2, 4, 8, 16, or 32)
+#define TUNE 1  //Multiplier applied to step speed (2 = twice the fluid)
 
 
 //////////////////////
-const float UL_PER_STEP = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(ID/2, 2)));   //mm3 / 
+const float UL_PER_STEP = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(ID/2, 2)));   //mm3 /
 
 //////////////////////
 
@@ -48,10 +49,18 @@ const char * flagTB = "tb";
 const char * flagQB = "qb";
 
 #define MAX_LINE_BYTES 64
-#define LED LED_BUILTIN
-#define BUTTON 5
-#define STEP 4
-#define DIR 2
+#define BUTTONSEL A3
+#define BUTTONF A2
+#define BUTTONR A1
+#define LEDR 4
+#define LEDY 3
+#define LEDG 2
+#define STEP 5
+#define DIR 4
+#define SDCS 10 //SPI CS
+#define MODE0 8
+#define MODE1 7
+#define MODE2 6
 
 char * dataLine = (char *) calloc(MAX_LINE_BYTES, 1);    //A single command line may contain 64 characters. Increase if more memory is availible.
 
@@ -111,9 +120,8 @@ void endGame() {    //Stops everything until the button is pressed (i.e. after c
 #ifndef NOSERIAL
     Serial.println("END - Waiting for button");
 #endif
-    while (!digitalRead(BUTTON));   //do a little debouncing
-    delay(100);
-    while (digitalRead(BUTTON));
+    while (digitalRead(BUTTONSEL));
+    digitalWrite(LEDR, LOW);
     reset();
 }
 
@@ -129,12 +137,24 @@ void setQ(float q) {
     Serial.print(" Set speed: ");
     Serial.println(stepSpeed);
 #endif
-    s.setSpeed(stepSpeed);
+    s.setSpeed(stepSpeed * TUNE);
 }
 
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
+void setMode(bool p0, bool p1, bool p2){
+    digitalWrite(MODE0, p0);
+    digitalWrite(MODE1, p1);
+    digitalWrite(MODE2, p2);
+}
+
+
+////////////////
+////////////////
+
+
 
 void setup() {
 #ifndef NOSERIAL
@@ -145,13 +165,50 @@ void setup() {
 #ifdef DEBUGSERIAL
     Serial.println("======== Begin ========");
 #endif
-    pinMode(LED, OUTPUT);
-    pinMode(BUTTON, INPUT);
-    digitalWrite(BUTTON, HIGH); //internal pullup
+    pinMode(MODE0, OUTPUT);
+    pinMode(MODE1, OUTPUT);
+    pinMode(MODE2, OUTPUT);
 
-    if (!SD.begin()) {
+    switch(USTEP_RATE) {
+    case 1:
+        setMode(0, 0, 0);
+        break;
+    case 2:
+        setMode(1, 0, 0);
+        break;
+    case 4:
+        setMode(0, 1, 0);
+        break;
+    case 8:
+        setMode(1, 1, 0);
+        break;
+    case 16:
+        setMode(0, 0, 1);
+        break;
+    case 32:
+        setMode(1, 1, 1);
+        break;
+    }
+
+    pinMode(SDCS, OUTPUT);
+
+    pinMode(LEDR, OUTPUT);
+    pinMode(LEDG, OUTPUT);
+    pinMode(LEDY, OUTPUT);
+
+    pinMode(BUTTONSEL, INPUT);
+    pinMode(BUTTONF, INPUT);
+    pinMode(BUTTONR, INPUT);
+
+    digitalWrite(BUTTONSEL, HIGH); //internal pullup
+    digitalWrite(BUTTONF, HIGH);
+    digitalWrite(BUTTONR, HIGH);
+
+
+    if (!SD.begin(SDCS)) {
 #ifndef NOSERIAL
         Serial.println("SD card not present");
+        digitalWrite(LEDR, HIGH);
 #endif
         endGame();
     }
@@ -163,10 +220,10 @@ void setup() {
         endGame();
     }
 
-    s.setMaxSpeed(1000000); //Something to do with acceleration, which we don't care about. Just use a very high number.
+    s.setMaxSpeed(1000000); //Something to do with acceleration, which we don't care about. Just use a very high number that we won't hit
     s.setSpeed(0);  //Don't move anything do start with
 
-    while (digitalRead(BUTTON)) {   //wait for the button to begin the routine
+    while (digitalRead(BUTTONSEL)) {   //wait for the button to begin the routine
         //Nothing happens
     }
     offsetTime = millis();
