@@ -1,5 +1,5 @@
-#ifndef MONTIEY_UTIL_H
-#define MONTIEY_UTIL_H
+#ifndef MULTITIMER_H
+#define MULTITIMER_H
 
 class HandyTimer {
 public:
