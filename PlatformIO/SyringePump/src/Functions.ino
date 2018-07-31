@@ -80,6 +80,7 @@ void initSD(){
 	do{
 		delay(300);	//Sd card no likey rapid reinits
 		if (!SD.begin(SDCS)) {
+			setLED(0, 0, 1);
 			#ifndef NOSERIAL
 			Serial.println("Couldn't reach SD card...");
 			#endif
@@ -87,11 +88,13 @@ void initSD(){
 		delay(300);
 		dataFile = SD.open(CMDFILE);
 		if (!dataFile) {
+			setLED(0, 0, 1);
 			#ifndef NOSERIAL
 			Serial.println("commands.txt not found...");
 			#endif
 		}
 	} while(!dataFile.available());
+	setLED(0, 0, 0);
 }
 
 bool db(byte pin){	//Make buttons sane

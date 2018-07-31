@@ -1,6 +1,5 @@
 /// Copyright 2018 Jason Harriot
 /// Units: Seconds, uL (mm3) / sec
-/// General notes: Serial prints take alot of time, so plan on using the pump without them.
 
 #include "AccelStepper.h"
 #include "MultiTimer.h"
@@ -9,7 +8,7 @@
 //////// vvv CONFIGURATION vvv ////////
 
 /// Removes ALL serial commands (for use)
-//#define NOSERIAL
+#define NOSERIAL
 
 #ifndef NOSERIAL
 
