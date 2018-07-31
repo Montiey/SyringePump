@@ -69,79 +69,79 @@ unsigned long offsetTime = 0;   //Time at which the routine was started (with bu
 
 
 void setup() {
-#ifndef NOSERIAL
-    Serial.begin(115200);
-    Serial.print("µL per step: ");
-    Serial.println(UL_PER_STEP);
-#endif
-#ifdef DEBUGSERIAL
-    Serial.println("======== Begin ========");
-#endif
-    pinMode(MODE0, OUTPUT);
-    pinMode(MODE1, OUTPUT);
-    pinMode(MODE2, OUTPUT);
+	#ifndef NOSERIAL
+	Serial.begin(115200);
+	Serial.print("µL per step: ");
+	Serial.println(UL_PER_STEP);
+	#endif
+	#ifdef DEBUGSERIAL
+	Serial.println("======== Begin ========");
+	#endif
+	pinMode(MODE0, OUTPUT);
+	pinMode(MODE1, OUTPUT);
+	pinMode(MODE2, OUTPUT);
 
-    switch(USTEP_RATE) {
-    case 1:
-        setMode(0, 0, 0);
-        break;
-    case 2:
-        setMode(1, 0, 0);
-        break;
-    case 4:
-        setMode(0, 1, 0);
-        break;
-    case 8:
-        setMode(1, 1, 0);
-        break;
-    case 16:
-        setMode(0, 0, 1);
-        break;
-    case 32:
-        setMode(1, 1, 1);
-        break;
-    }
+	switch(USTEP_RATE) {
+		case 1:
+		setMode(0, 0, 0);
+		break;
+		case 2:
+		setMode(1, 0, 0);
+		break;
+		case 4:
+		setMode(0, 1, 0);
+		break;
+		case 8:
+		setMode(1, 1, 0);
+		break;
+		case 16:
+		setMode(0, 0, 1);
+		break;
+		case 32:
+		setMode(1, 1, 1);
+		break;
+	}
 
-    pinMode(SDCS, OUTPUT);
+	pinMode(SDCS, OUTPUT);
 
-    pinMode(LEDR, OUTPUT);
-    pinMode(LEDG, OUTPUT);
-    pinMode(LEDY, OUTPUT);
+	pinMode(LEDR, OUTPUT);
+	pinMode(LEDG, OUTPUT);
+	pinMode(LEDY, OUTPUT);
 
-    pinMode(BUTTONSEL, INPUT);
-    pinMode(BUTTONF, INPUT);
-    pinMode(BUTTONR, INPUT);
+	pinMode(BUTTONSEL, INPUT);
+	pinMode(BUTTONF, INPUT);
+	pinMode(BUTTONR, INPUT);
 
-    digitalWrite(BUTTONSEL, HIGH); //internal pullup
-    digitalWrite(BUTTONF, HIGH);
-    digitalWrite(BUTTONR, HIGH);
+	digitalWrite(BUTTONSEL, HIGH); //internal pullup
+	digitalWrite(BUTTONF, HIGH);
+	digitalWrite(BUTTONR, HIGH);
 
 
-    if (!SD.begin(SDCS)) {
-#ifndef NOSERIAL
-        Serial.println("SD card not present");
-        digitalWrite(LEDR, HIGH);
-#endif
-        endGame();
-    }
-    dataFile = SD.open(CMDFILE);
-    if (!dataFile) {
-#ifndef NOSERIAL
-        Serial.println("FILE not found");
-#endif
-        endGame();
-    }
+	if (!SD.begin(SDCS)) {
+		#ifndef NOSERIAL
+		Serial.println("SD card not present");
+		digitalWrite(LEDR, HIGH);
+		#endif
+		endGame();
+	}
+	dataFile = SD.open(CMDFILE);
+	if (!dataFile) {
+		#ifndef NOSERIAL
+		Serial.println("FILE not found");
+		#endif
+		endGame();
+	}
 
-    s.setMaxSpeed(1000000); //Something to do with acceleration, which we don't care about. Just use a very high number that we won't hit
-    s.setSpeed(0);  //Don't move anything do start with
+	s.setMaxSpeed(1000000); //Something to do with acceleration, which we don't care about. Just use a very high number that we won't hit
+	s.setSpeed(0);  //Don't move anything do start with
 
-    while (digitalRead(BUTTONSEL)) {   //wait for the button to begin the routine
-        doJog();
-    }
-    
-    offsetTime = millis();
+	while (digitalRead(BUTTONSEL)) {   //wait for the button to begin the routine
+		doJog();
+	}
+
+	offsetTime = millis();
 }
 
 void loop() {
-    everything();
+	everything();
 }
