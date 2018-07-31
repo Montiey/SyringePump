@@ -54,11 +54,13 @@ void getLine() {
 
 void endGame() {    //Stops everything until the button is pressed (i.e. after commands complete, or after an error to retry)
 #ifndef NOSERIAL
-    Serial.println("-- Waiting for button --");
+    Serial.println("\n\n-- Waiting for button --\n\n");
 #endif
     commandIndex = 0;
     dataFile.close();   //re-open the file to reset read() index
     dataFile = SD.open(CMDFILE);
+    while(!digitalRead(BUTTONSEL)); //hold while pressed
+    delay(100);
     while(digitalRead(BUTTONSEL));
     offsetTime = millis();
 }
