@@ -7,6 +7,13 @@ Control liquid flow with a simple interface, with the ability to specify precise
 Interface:
 Plaintext is written to a file and loaded via SD card by the microcontroller. 3 buttons are used to manually control the pump and / or execute the commands from disk.
 
+Workflow:
+-Set the ID parameter to match the syringe in use
+-Flash firmware
+-Save commands to SD card
+-Power on, jog to position with buttons
+-Start routine
+
 Setup:
 The project is built using Atom / PlatformIO. If compiled with the stock Arduino IDE, some libraries may have to be manually included.
 Download the source, and open Pump.ino in PlatformIO. Several #define statements control the pump's behavior.
