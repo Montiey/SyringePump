@@ -8,25 +8,21 @@
 //////// vvv CONFIGURATION vvv ////////
 
 /// Removes ALL serial commands (for regular use)
-#define NOSERIAL
+//#define NOSERIAL
 
 #ifndef NOSERIAL
-
 /// Enables spammy debugging prints (for testing) (if not already disabled above)
 #define DEBUGSERIAL
-
 #endif
 
 //// Tuning / setup / customization:
-
-#define ID 4.5	//Inner diameter of the syringe (20mL: ~18.5mm, 1mL: ~4.5mm)
 #define PITCH 0.8	//Pitch of the threaded rod
 #define STEPS 400	//Steps per revolution of the motor
 #define USTEP_RATE 32	//This sets digital pins to control microstepping (1, 2, 4, 8, 16, or 32)
-#define TUNE 1.000	//Multiplier applied to step speed (2 = twice the fluid)
 #define JOG_SPEED 1000	//Steps / sec for jog moves
 #define JOG_USTEP 2	//microstepping for jog moves
 #define CMDFILE "commands.txt"
+#define CONFIGFILE "config.txt"
 
 //// Hardware definitions:
 
@@ -47,35 +43,37 @@
 
 unsigned long lastSel = 0;	//time of the last BUTTONSEL press for debouncing
 #define MAX_LINE_BYTES 64	//max number of bytes to load for a single command
+#define MAX_CONFIG_BYTES 32	//maximum size (total) of the config file.
 #define DB_THRESH 25	//debouncing time (less than the fastest possible valid button push)
 #define PUMPMODE 0
 #define JOGMODE 1
 #define ERRORMODE 2
 File dataFile;
-const float UL_PER_STEP = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(ID/2, 2)));	//mm3
+float ULPerStep;
 const char flagT = 't';	//defined here because strstr and strchr don't like literals
 const char flagQ = 'q';
 const char * flagTA = "ta";
 const char * flagQA = "qa";
 const char * flagTB = "tb";
 const char * flagQB = "qb";
+const char * flagID = "ID";
+const char * flagTN = "TN";
 char * dataLine = (char *) calloc(MAX_LINE_BYTES, 1);	//A single command line may contain MAX_LINE_BYTES characters.
 AccelStepper s(1, STEP, DIR);	//1 = "driver mode" (operate with pulse and direction pins)
 HandyTimer recalculationInterval(125);	//How often to perform (lengthy) calculations and set the updated speed
 int commandIndex = 0;	//Current line of text
 unsigned long offsetTime = 0;	//Time at which the routine was started (with button)
 byte runMode = 0;	//variable to hold the current mode at any given time
-
+float configID = 0;	//Global value for the ID parameter (once loaded from SD)
+float configTN = 0;	//Global value for the TUNE parameter (once loaded from SD)
 
 ////////////////
 ////////////////
-
 
 void setup() {
 	#ifndef NOSERIAL
 	Serial.begin(115200);
-	Serial.print("µL per step: ");
-	Serial.println(UL_PER_STEP);
+	while(!Serial);
 	#endif
 
 	#ifdef DEBUGSERIAL

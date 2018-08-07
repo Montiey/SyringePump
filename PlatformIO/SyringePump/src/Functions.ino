@@ -2,15 +2,14 @@
 int jogWithButtons() {
 	if(!digitalRead(BUTTONF)) {
 		s.setSpeed(JOG_SPEED);
-		s.runSpeed();
 	}
 	else if(!digitalRead(BUTTONR)) {
 		s.setSpeed(-JOG_SPEED);
-		s.runSpeed();
-	}
-	else{
+	}else{
 		s.setSpeed(0);
 	}
+
+	s.runSpeed();
 
 	if(db(BUTTONSEL)){
 		return -1;
@@ -29,7 +28,7 @@ void getLine() {
 	bool addNewline = false;
 	if(!dataFile.available()) {
 		#ifdef DEBUGSERIAL
-		Serial.println("There is no remaining text in the file. Appending a possibly redundant newline.");
+		Serial.println("End of file");
 		#endif
 		addNewline = true;
 	}
@@ -56,19 +55,19 @@ void getLine() {
 	}
 }
 
-void activePumpingLoop() {	//This accounts for 99% of runtime while running SD pump commands
+void activePumpingLoop() {	//This accounts for most of runtime
 	s.runSpeed();
 }
 
 void setQ(float q) {
-	float stepSpeed = UL_PER_STEP * q;
+	float stepSpeed = ULPerStep * q * configTN;
 	#ifdef DEBUGSERIAL
 	Serial.print("Set q: ");
 	Serial.print(q);
 	Serial.print(" Set speed: ");
 	Serial.println(stepSpeed);
 	#endif
-	s.setSpeed(stepSpeed * TUNE);
+	s.setSpeed(stepSpeed);
 }
 
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
@@ -76,13 +75,17 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 }
 
 void initSD(){
+	#ifndef NOSERIAL
+	Serial.println("SD init");
+	#endif
 
+	File configFile;
 	do{
 		delay(300);	//Sd card no likey rapid reinits
 		if (!SD.begin(SDCS)) {
 			setLED(0, 0, 1);
 			#ifndef NOSERIAL
-			Serial.println("Couldn't reach SD card...");
+			Serial.println("SD read error");
 			#endif
 		}
 		delay(300);
@@ -90,10 +93,43 @@ void initSD(){
 		if (!dataFile) {
 			setLED(0, 0, 1);
 			#ifndef NOSERIAL
-			Serial.println("commands.txt not found...");
+			Serial.print(CMDFILE);
+			Serial.println(" file error");
+			#endif
+		}
+		delay(300);
+		configFile = SD.open(CONFIGFILE);
+		if(!configFile){
+			setLED(0, 0, 1);
+			#ifndef NOSERIAL
+			Serial.print(CONFIGFILE);
+			Serial.println(" file error");
+			#endif
+		} else {	//If we can access it, go ahead and do some stuff
+			char * configText = (char *) calloc(MAX_CONFIG_BYTES, 1);
+			int i = 0;
+			while(configFile.available() && i < MAX_CONFIG_BYTES){
+				configText[i] = configFile.read();;
+				i++;
+			}
+			#ifndef NOSERIAL
+			Serial.print("Text: ");
+			Serial.println(configText);
+			#endif
+
+			configID = atof(strstr(configText, flagID) + strlen(flagID));
+			configTN = atof(strstr(configText, flagTN) + strlen(flagID));
+			ULPerStep = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(configID/2.0, 2.0)));
+
+			#ifndef NOSERIAL
+			Serial.print("UL per step: ");
+			Serial.println(ULPerStep);
 			#endif
 		}
 	} while(!dataFile.available());
+	#ifndef NOSERIAL
+	Serial.println("SD init done");
+	#endif
 	setLED(0, 0, 0);
 }
 
@@ -169,10 +205,10 @@ int pump(){
 		#endif
 
 		//Get data
-		ta = atof(strstr(dataLine, flagTA) + 2);    //get buff @ the index of the flag buff, then parse it and return a float.
-		qa = atof(strstr(dataLine, flagQA) + 2);
-		tb = atof(strstr(dataLine, flagTB) + 2);
-		qb = atof(strstr(dataLine, flagQB) + 2);
+		ta = atof(strstr(dataLine, flagTA) + strlen(flagTA));    //get buff @ the index of the flag buff, then parse it and return a float.
+		qa = atof(strstr(dataLine, flagQA) + strlen(flagQA));
+		tb = atof(strstr(dataLine, flagTB) + strlen(flagTB));
+		qb = atof(strstr(dataLine, flagQB) + strlen(flagQB));
 
 		#ifdef DEBUGSERIAL
 		Serial.print("Command index: ");
