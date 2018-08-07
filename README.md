@@ -11,7 +11,8 @@ SD Interface:
 -config.txt contains a parameter for the diameter of the syringe in use, as well as a multiplier. The Multiplier is used to precisely tune the ammount of liquid pumped.
 
 Sample commands:
-```t0 q100
+```
+t0 q100
 t1 q200
 t2 q300
 t3 q-300
@@ -21,7 +22,8 @@ t6 q0
 ```
 
 Sample config:
-```ID 4.5	//Inner diameter of the syringe
+```
+ID 4.5	//Inner diameter of the syringe
 TN 1.0	//Tuning multiplier
 ```
 
