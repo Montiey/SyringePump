@@ -17,10 +17,12 @@ t2 q300
 t3 q-300
 t4 q-200
 t5 q-100
-t6 q0```
+t6 q0
+```
 
 Sample config:
 ```ID 4.5	//Inner diameter of the syringe
-TN 1.0	//Tuning multiplier```
+TN 1.0	//Tuning multiplier
+```
 
 [Model files](https://www.thingiverse.com/thing:3038896)
