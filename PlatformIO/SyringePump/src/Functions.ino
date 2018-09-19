@@ -40,7 +40,7 @@ void setLED(byte color){
 		case BLUE:
 		b = 1;
 		break;
-		case PINK:
+		case MAGENTA:
 		r = 1; b = 1;
 		break;
 		case CYAN:
@@ -89,6 +89,13 @@ void getLine() {
 
 void activePumpingLoop() {	//This accounts for most of runtime
 	s.runSpeed();
+	if(LEDTimer.trigger()){
+		if(currentColor){
+			setLED(BLACK);
+		} else{
+			setLED(GREEN);
+		}
+	}
 }
 
 void setQ(float q) {

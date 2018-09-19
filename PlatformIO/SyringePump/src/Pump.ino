@@ -43,7 +43,7 @@
 #define GREEN 2
 #define YELLOW 3
 #define BLUE 4
-#define PINK 5
+#define MAGENTA 5
 #define CYAN 6
 #define WHITE 7
 byte currentColor = 0;	//Value carryover for nested states. Always up to date (if using setLED())
@@ -69,7 +69,8 @@ const char * flagID = "ID";
 const char * flagTN = "TN";
 char * dataLine = (char *) calloc(MAX_LINE_BYTES, 1);	//A single command line may contain MAX_LINE_BYTES characters or less.
 AccelStepper s(1, STEP, DIR);	//1 = "driver mode" (operate with STEP and DIR pins)
-HandyTimer recalculationInterval(250);	//How often to perform (lengthy) calculations and set the updated speed
+HandyTimer recalculationInterval(250);	//How often to perform (lengthy) calculations and set the updated speed for gradients
+HandyTimer LEDTimer(125);
 int commandIndex = 0;	//Current line of text
 unsigned long offsetTime = 0;	//Time at which the routine was started (with button)
 byte runMode = 0;	//Variable to hold the current mode at any given time
@@ -115,7 +116,7 @@ void setup() {
 
 void loop() {
 	if(runMode == PUMPMODE){
-		setLED(BLUE);
+		setLED(GREEN);
 		if(pump() == -1){	//If the pumping routine has finished
 			runMode = JOGMODE;
 			setStepRate(JOG_USTEP);
@@ -124,7 +125,7 @@ void loop() {
 			#endif
 		}
 	} else if(runMode == JOGMODE){
-		setLED(GREEN);
+		setLED(BLUE);
 		s.runSpeed();
 		if(jogWithButtons() == -1){	//If we should start the pumping routine
 			runMode = PUMPMODE;
