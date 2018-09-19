@@ -1,15 +1,19 @@
 
 int jogWithButtons() {
+
 	if(!digitalRead(BUTTONF)) {
-		s.setSpeed(JOG_SPEED);
-	}
-	else if(!digitalRead(BUTTONR)) {
-		s.setSpeed(-JOG_SPEED);
-	}else{
-		s.setSpeed(0);
+		s.setSpeed(JOG_SPEED * configTNR);
+		return 0;
 	}
 
-	s.runSpeed();
+	if(!digitalRead(BUTTONR)) {
+		s.setSpeed(-JOG_SPEED * configTNR);
+		return 0;
+	}
+
+	///	Control enters if no buttons pressed (end of low-latency section)
+
+	s.setSpeed(0);	//Set if no buttons because s.runSpeed() is called all the time in main()
 
 	if(db(BUTTONSEL)){
 		return -1;
@@ -18,23 +22,51 @@ int jogWithButtons() {
 	return 0;
 }
 
-void setLED(bool g, bool y, bool r){
-	digitalWrite(LEDG, g);
-	digitalWrite(LEDY, y);
-	digitalWrite(LEDR, r);
+void setLED(byte color){
+	currentColor = color;
+	bool r = 0;
+	bool g = 0;
+	bool b = 0;
+	switch(color){
+		case RED:
+		r = 1;
+		break;
+		case GREEN:
+		g = 1;
+		break;
+		case YELLOW:
+		r = 1; g = 1;
+		break;
+		case BLUE:
+		b = 1;
+		break;
+		case PINK:
+		r = 1; b = 1;
+		break;
+		case CYAN:
+		g = 1; b = 1;
+		break;
+		case WHITE:
+		r = 1; g = 1; b = 1;
+		break;
+	}
+
+	digitalWrite(LEDR, !r);
+	digitalWrite(LEDG, !g);
+	digitalWrite(LEDB, !b);
 }
 
 void getLine() {
 	bool addNewline = false;
 	if(!dataFile.available()) {
-		#ifdef DEBUGSERIAL
+		#ifndef NODEBUG
 		Serial.println("End of file");
 		#endif
 		addNewline = true;
 	}
 
-	char c = ' ';    //some irrelevant starting value
-	byte i = 0; //counter
+	char c = ' ';	//Some irrelevant starting value
+	byte i = 0;	//Counter
 
 	int x;
 	for(x = 0; x < MAX_LINE_BYTES; x++) {
@@ -44,9 +76,9 @@ void getLine() {
 		dataLine[x+1] = '\n';
 	}
 
-	while (dataFile.available() && c != '\n' && i < MAX_LINE_BYTES) { //while there is data to be read
-		c = dataFile.read(); //read in the data
-		#ifdef DEBUGSERIAL
+	while (dataFile.available() && c != '\n' && i < MAX_LINE_BYTES) {	//While there is data to be read
+		c = dataFile.read();	//Read in the data
+		#ifndef NODEBUG
 		Serial.print("New character loaded: ");
 		Serial.println(c);
 		#endif
@@ -61,7 +93,7 @@ void activePumpingLoop() {	//This accounts for most of runtime
 
 void setQ(float q) {
 	float stepSpeed = ULPerStep * q * configTN;
-	#ifdef DEBUGSERIAL
+	#ifndef NODEBUG
 	Serial.print("Set q: ");
 	Serial.print(q);
 	Serial.print(" Set speed: ");
@@ -81,32 +113,39 @@ void initSD(){
 
 	File configFile;
 	do{
-		delay(300);	//Sd card no likey rapid reinits
 		if (!SD.begin(SDCS)) {
-			setLED(0, 0, 1);
+			setLED(RED);
 			#ifndef NOSERIAL
 			Serial.println("SD read error");
 			#endif
+			delay(300);
 		}
-		delay(300);
 		dataFile = SD.open(CMDFILE);
 		if (!dataFile) {
-			setLED(0, 0, 1);
+			setLED(RED);
 			#ifndef NOSERIAL
 			Serial.print(CMDFILE);
 			Serial.println(" file error");
 			#endif
+			delay(300);
 		}
-		delay(300);
+
+
+
+
 		configFile = SD.open(CONFIGFILE);
+
+
+
 		if(!configFile){
-			setLED(0, 0, 1);
+			setLED(RED);
 			#ifndef NOSERIAL
 			Serial.print(CONFIGFILE);
 			Serial.println(" file error");
 			#endif
+			delay(300);
 		} else {	//If we can access it, go ahead and do some stuff
-			char * configText = (char *) calloc(MAX_CONFIG_BYTES, 1);
+			char * configText = (char *) calloc(MAX_CONFIG_BYTES, 1);	//config is loaded all at once
 			int i = 0;
 			while(configFile.available() && i < MAX_CONFIG_BYTES){
 				configText[i] = configFile.read();;
@@ -119,38 +158,50 @@ void initSD(){
 
 			configID = atof(strstr(configText, flagID) + strlen(flagID));
 			configTN = atof(strstr(configText, flagTN) + strlen(flagID));
+			if(configTN > 0){
+				configTNR = 1;
+			} else{
+				configTNR = -1;
+			}
 			ULPerStep = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(configID/2.0, 2.0)));
 
 			#ifndef NOSERIAL
 			Serial.print("UL per step: ");
 			Serial.println(ULPerStep);
 			#endif
+
+			configFile.close();
 		}
 	} while(!dataFile.available());
+	setLED(BLACK);
 	#ifndef NOSERIAL
 	Serial.println("SD init done");
 	#endif
-	setLED(0, 0, 0);
 }
 
-bool db(byte pin){	//Make buttons sane
+bool db(byte pin){	//Button debounce
+	byte lastColor = currentColor;
 	if(millis() - lastSel < DB_THRESH){
-		return false;	//don't accept if pushed too fast since last
+		setLED(lastColor);
+		return false;	//Don't accept if pushed too fast since last
 	}
 	if(!digitalRead(pin)){
 		lastSel = millis();
-		setLED(1, 1, 1);
+		setLED(WHITE);
 		while(!digitalRead(pin)){
 
 		}
-		setLED(0, 0, 0);
+		setLED(BLACK);
 		if(millis() - lastSel < DB_THRESH){	//If not enough time has passed
+			setLED(lastColor);
 			return false;
 		} else{
-			lastSel = millis();	//successful button press
+			lastSel = millis();	//Successful button press
+			setLED(lastColor);
 			return true;
 		}
 	}
+	setLED(lastColor);
 	return false;
 }
 
@@ -187,30 +238,30 @@ void setMode(bool p0, bool p1, bool p2) {
 }
 
 int pump(){
-	#ifdef DEBUGSERIAL
+	#ifndef NODEBUG
 	Serial.println("================= Pumping loop begin:");
 	#endif
-	getLine(); //get the next line
+	getLine();	//Get the next line
 
-	if (strstr(dataLine, flagQA)) {   //if command is for gradient (if qa flag exists)
+	if (strstr(dataLine, flagQA)) {	//If command is for gradient (if qa flag exists)
 		float ta;
 		float qa;
 		float tb;
 		float qb;
 
-		#ifdef DEBUGSERIAL
+		#ifndef NODEBUG
 		Serial.println("Begin: GRADIENT command parsing");
 		Serial.println("Command: ");
 		Serial.println(dataLine);
 		#endif
 
 		//Get data
-		ta = atof(strstr(dataLine, flagTA) + strlen(flagTA));    //get buff @ the index of the flag buff, then parse it and return a float.
+		ta = atof(strstr(dataLine, flagTA) + strlen(flagTA));	//Get buff @ the index of the flag buff, then parse it and return a float.
 		qa = atof(strstr(dataLine, flagQA) + strlen(flagQA));
 		tb = atof(strstr(dataLine, flagTB) + strlen(flagTB));
 		qb = atof(strstr(dataLine, flagQB) + strlen(flagQB));
 
-		#ifdef DEBUGSERIAL
+		#ifndef NODEBUG
 		Serial.print("Command index: ");
 		Serial.println(commandIndex);
 		Serial.println(ta);
@@ -219,44 +270,44 @@ int pump(){
 		Serial.println(qb);
 		#endif
 
-		if (ta == 0 && commandIndex != 0) { //Cheap way of figuring out if String.toFloat failed
-			#ifdef DEBUGSERIAL
+		if (ta == 0 && commandIndex != 0) {	//Cheap way of figuring out if String.toFloat failed
+			#ifndef NODEBUG
 			Serial.println("This command has stopped the routine.");
 			#endif
 			return -1;	//Tell loop() that pumping has completed
 		}
 
-		while (1) {	//wait for the beginning of the gradient to start
-			if (millis() - offsetTime >= ta * 1000) { //if the queued event is up or has passed
+		while (1) {	//Wait for the beginning of the gradient to start
+			if (millis() - offsetTime >= ta * 1000) {	//If the queued event is up or has passed
 				break;
 			}
-			activePumpingLoop();  //While we wait, do all the things.
+			activePumpingLoop();	//While we wait, do all the things.
 			if(db(BUTTONSEL)){
-				return -1;	//if the button is pushed, we tell loop() to go to jog mode
+				return -1;	//If the button is pushed, we tell loop() to go to jog mode
 			}
 		}
 
-		unsigned long startTime = offsetTime + (ta * 1000); //start of the gradient where it SHOULD be
-		while (1) { //Loop for the duration of the gradient command
+		unsigned long startTime = offsetTime + (ta * 1000);	//Start of the gradient where it SHOULD be
+		while (1) {	//Loop for the duration of the gradient command
 
 			if (recalculationInterval.trigger()) {
 				float newQ = (float) mapFloat((millis() - startTime), 0.0, (tb - ta) * 1000.0, qa, qb);
 				setQ(newQ);
 			}
 
-			if ((millis() - startTime) > (tb - ta) * 1000) { //if the gradient is complete
+			if ((millis() - startTime) > (tb - ta) * 1000) {	//If the gradient is complete
 				break;
 			}
-			activePumpingLoop();    //While we wait, do all the things.
+			activePumpingLoop();	//While we wait, do all the things.
 			if(db(BUTTONSEL)){
-				return -1;	//if the button is pushed, we tell loop() to go to jog mode
+				return -1;	//If the button is pushed, we tell loop() to go to jog mode
 			}
 		}
 	} else {
 		float t;
 		float q;
 
-		#ifdef DEBUGSERIAL
+		#ifndef NODEBUG
 		Serial.println("Begin: NORMAL command parsing");
 		Serial.print("Command: ");
 		Serial.println(dataLine);
@@ -265,32 +316,32 @@ int pump(){
 		t = atof(strchr(dataLine, flagT) + 1);
 		q = atof(strchr(dataLine, flagQ) + 1);
 
-		#ifdef DEBUGSERIAL
+		#ifndef NODEBUG
 		Serial.print("Command index: ");
 		Serial.println(commandIndex);
 		Serial.println(t);
 		Serial.println(q);
 		#endif
 
-		if (t == 0 && commandIndex != 0) { //Cheap way of figuring out if String.toFloat failed
-			#ifdef DEBUGSERIAL
+		if (t == 0 && commandIndex != 0) {	//Cheap way of figuring out if String.toFloat failed
+			#ifndef NODEBUG
 			Serial.println("This command has stopped the routine.");
 			#endif
 			return -1;	//Tell loop() that pumping has completed
 		}
 
-		while (1) {	//wait for the event to be up
-			if (millis() - offsetTime >= t * 1000) { //if the queued event is up or has passed
+		while (1) {	//Wait for the event to be up
+			if (millis() - offsetTime >= t * 1000) {	//If the queued event is up or has passed
 				break;
 			}
-			activePumpingLoop();    //While we wait, do all the things.
+			activePumpingLoop();	//While we wait, do all the things.
 			if(db(BUTTONSEL)){
-				return -1;	//if the button is pushed, we tell loop() to go to jog mode
+				return -1;	//If the button is pushed, we tell loop() to go to jog mode
 			}
 		}
 		setQ(q);
 	}
 
 	commandIndex++;
-	return 0;	//tell loop() that we're not finished pumping
+	return 0;	//Tell loop() that we're not finished pumping
 }
