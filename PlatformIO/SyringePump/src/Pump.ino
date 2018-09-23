@@ -8,7 +8,7 @@
 //////// vvv CONFIGURATION vvv ////////
 
 /// Removes ALL serial commands (for regular use)
-//#define NOSERIAL
+#define NOSERIAL
 
 #ifndef NOSERIAL
 #define NODEBUG	/// Removes spammy prints only

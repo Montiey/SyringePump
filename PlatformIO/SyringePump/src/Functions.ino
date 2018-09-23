@@ -11,7 +11,7 @@ int jogWithButtons() {
 		return 0;
 	}
 
-	///	Control enters if no buttons pressed (end of low-latency section)
+	/// ~Control enters here if no buttons are pressed
 
 	s.setSpeed(0);	//Set if no buttons because s.runSpeed() is called all the time in main()
 
