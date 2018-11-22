@@ -1,19 +1,29 @@
 
 int jogWithButtons() {
-
 	if(!digitalRead(BUTTONF)) {
-		s.setSpeed(JOG_SPEED * configTNR);
-		return 0;
+		if(!jogHeld){
+			if(db_hold(BUTTONF)) jogHeld = true;	//skip hold check for next presses
+			return 0;
+		} else{
+			s.setSpeed(JOG_SPEED * configTNR);
+			return 0;
+		}
 	}
 
 	if(!digitalRead(BUTTONR)) {
-		s.setSpeed(-JOG_SPEED * configTNR);
-		return 0;
+		if(!jogHeld){
+			if(db_hold(BUTTONR)) jogHeld = true;	//skip hold check for next presses
+			return 0;
+		} else{
+			s.setSpeed(-JOG_SPEED * configTNR);
+			return 0;
+		}
 	}
 
-	/// ~Control enters here if no buttons are pressed
+	//	Control enters here if no buttons are pressed
 
 	s.setSpeed(0);	//Set if no buttons because s.runSpeed() is called all the time in main()
+	jogHeld = false;	//Recheck the buttons for holding
 
 	if(db(BUTTONSEL)){
 		return -1;
@@ -186,7 +196,7 @@ void initSD(){
 	#endif
 }
 
-bool db(byte pin){	//Button debounce
+bool db(byte pin){	//Button debounce (WAITS FOR RELEASE)
 	byte lastColor = currentColor;
 	if(millis() - lastSel < DB_THRESH){
 		setLED(lastColor);
@@ -209,6 +219,16 @@ bool db(byte pin){	//Button debounce
 		}
 	}
 	setLED(lastColor);
+	return false;
+}
+
+bool db_hold(byte pin){	//Button hold debounce (DOESN'T WAIT FOR RELEASE)
+	unsigned long start = millis();
+	while(!digitalRead(pin)){
+		if(millis() - start >= DB_HOLD_THRESH){
+			return true;
+		}
+	}
 	return false;
 }
 

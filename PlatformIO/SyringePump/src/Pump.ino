@@ -4,6 +4,7 @@
 #include "AccelStepper.h"
 #include "MultiTimer.h"
 #include <SD.h>
+#include <arduino.h>
 
 //////// vvv CONFIGURATION vvv ////////
 
@@ -50,10 +51,12 @@ byte currentColor = 0;	//Value carryover for nested states. Always up to date (i
 
 //// Miscelaneous:
 
-unsigned long lastSel = 0;	//Time of the last button press for debouncing
 #define MAX_LINE_BYTES 64	//Max number of bytes to load for a single command
 #define MAX_CONFIG_BYTES 32	//Maximum size (total) of the config file.
-#define DB_THRESH 40	//Debouncing time (less than the fastest possible valid button push)
+#define DB_THRESH 35	//Debouncing time (less than the fastest possible valid button push)
+#define DB_HOLD_THRESH 125	//Hold time to start jogging
+unsigned long lastSel = 0;
+bool jogHeld = false;
 #define PUMPMODE 0
 #define JOGMODE 1
 #define ERRORMODE 2
