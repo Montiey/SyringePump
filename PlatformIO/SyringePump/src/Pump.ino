@@ -9,18 +9,18 @@
 //////// vvv CONFIGURATION vvv ////////
 
 /// Removes ALL serial commands (for regular use)
-#define NOSERIAL
+//#define NOSERIAL
 
 #ifndef NOSERIAL
-#define NODEBUG	/// Removes spammy prints only
+//#define NODEBUG	/// Removes spammy prints only
 #endif
 
 ////	Tuning / setup / customization:
 #define PITCH 0.8	//Pitch of the threaded rod
-#define STEPS 400	//Steps per revolution of the motor
-#define USTEP_RATE 32	//This sets digital pins to control microstepping (1, 2, 4, 8, 16, or 32)
-#define JOG_SPEED 1700	//Steps / sec for jog moves
-#define JOG_USTEP 2	//Microstepping for jog moves
+#define STEPS 400.0	//Steps per revolution of the motor
+#define USTEP_RATE 32.0	//This sets digital pins to control microstepping (1, 2, 4, 8, 16, or 32)
+#define JOG_SPEED 1700.0	//Steps / sec for jog moves
+#define JOG_USTEP 2.0	//Microstepping for jog moves
 #define CMDFILE "commands.txt"
 #define CONFIGFILE "config.txt"
 
@@ -80,6 +80,8 @@ byte runMode = 0;	//Variable to hold the current mode at any given time
 float configID;	//Global value for the ID parameter (once loaded from SD)
 float configTN;	//Global value for the TUNE parameter (once loaded from SD)
 float configTNR;	//-1 or 1. Set in initSD(). For convenience.
+unsigned long blankCount = 0;
+HandyTimer statusPrint(1000);
 
 ////////////////
 ////////////////
@@ -110,8 +112,7 @@ void setup() {
 
 	initSD();
 
-	s.setMaxSpeed(1000000);	//Acceleration ceiling, which we don't care about. Just use a very high number that we won't hit
-	s.setSpeed(0);	//Don't move anything do start with
+	s.setMaxSpeed(1000000000);	//Acceleration ceiling, which we don't care about. Just use the max float value
 
 	runMode = JOGMODE;
 	setStepRate(JOG_USTEP);
@@ -126,11 +127,18 @@ void loop() {
 			#ifndef NOSERIAL
 			Serial.println("Pumping routine finished");
 			#endif
+			#ifndef NODEBUG
+			Serial.print("End Distance: ");
+			Serial.println(s.currentPosition());
+			Serial.print("End blanks: ");
+			Serial.println(blankCount);
+			#endif
 		}
 	} else if(runMode == JOGMODE){
 		setLED(BLUE);
 		s.runSpeed();
 		if(jogWithButtons() == -1){	//If we should start the pumping routine
+			s.setCurrentPosition(0);
 			runMode = PUMPMODE;
 			setStepRate(USTEP_RATE);
 			#ifndef NOSERIAL

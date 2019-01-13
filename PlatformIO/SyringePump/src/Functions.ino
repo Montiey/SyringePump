@@ -89,7 +89,7 @@ void getLine() {
 	while (dataFile.available() && c != '\n' && i < MAX_LINE_BYTES) {	//While there is data to be read
 		c = dataFile.read();	//Read in the data
 		#ifndef NODEBUG
-		Serial.print("New character loaded: ");
+		Serial.print("Char: ");
 		Serial.println(c);
 		#endif
 		dataLine[i] = c;
@@ -98,7 +98,14 @@ void getLine() {
 }
 
 void activePumpingLoop() {	//This accounts for most of runtime
-	s.runSpeed();
+	bool stepped = s.runSpeed();
+
+	if(stepped && statusPrint.trigger()){
+		blankCount = 0;
+	} else{
+		blankCount++;
+	}
+	
 	if(LEDTimer.trigger()){
 		if(currentColor){
 			setLED(BLACK);
@@ -109,7 +116,7 @@ void activePumpingLoop() {	//This accounts for most of runtime
 }
 
 void setQ(float q) {
-	float stepSpeed = ULPerStep * q * configTN;
+	float stepSpeed = (q * configTN) / ULPerStep;
 	#ifndef NODEBUG
 	Serial.print("Set q: ");
 	Serial.print(q);
@@ -147,12 +154,7 @@ void initSD(){
 			delay(300);
 		}
 
-
-
-
 		configFile = SD.open(CONFIGFILE);
-
-
 
 		if(!configFile){
 			setLED(RED);
@@ -180,11 +182,22 @@ void initSD(){
 			} else{
 				configTNR = -1;
 			}
-			ULPerStep = PITCH * (360.0 / (STEPS * USTEP_RATE) ) * (PI * (float)(pow(configID/2.0, 2.0)));
+
+			Serial.print("Pitch: ");
+			Serial.println(PITCH);
+
+			Serial.print("Steps: ");
+			Serial.println(STEPS);
+
+			Serial.print("uStep Rate: ");
+			Serial.println(USTEP_RATE);
+
+			// ULPerStep = (PITCH / (STEPS * USTEP_RATE)) * PI * (float)(pow(configID/2.0, 2.0));
+			ULPerStep = PITCH / (STEPS * USTEP_RATE);
 
 			#ifndef NOSERIAL
 			Serial.print("UL per step: ");
-			Serial.println(ULPerStep);
+			Serial.println(ULPerStep, 10);
 			#endif
 
 			configFile.close();
@@ -233,6 +246,10 @@ bool db_hold(byte pin){	//Button hold debounce (DOESN'T WAIT FOR RELEASE)
 }
 
 void setStepRate(byte rate){
+	#ifndef NODEBUG
+	Serial.print("Set uStepping: ");
+	Serial.println(rate);
+	#endif
 	switch(rate) {
 		case 1:
 		setMode(0, 0, 0);
@@ -251,6 +268,7 @@ void setStepRate(byte rate){
 		break;
 		case 32:
 		setMode(1, 1, 1);
+
 		break;
 		default:
 		setMode(0, 0, 0);
