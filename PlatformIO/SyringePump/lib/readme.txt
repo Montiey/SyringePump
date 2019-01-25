@@ -15,7 +15,7 @@ For example, see how can be organized `Foo` and `Bar` libraries:
 |  |  |--src
 |  |     |- Bar.c
 |  |     |- Bar.h
-|  |  |- library.json (optional, custom build options, etc) http://docs.platformio.org/page/librarymanager/config.html
+|  |  |- library.json (optional, custom build options, etc) http://docs.platformio.org/page/librarymanager/Config.html
 |  |
 |  |--Foo
 |  |  |- Foo.c
