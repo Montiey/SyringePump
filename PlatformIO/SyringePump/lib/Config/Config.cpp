@@ -1,7 +1,8 @@
-#include <stdio.h>
-#include "AccelStepper.h"
+// Copyright 2019 Jason Harriot
+
+#include "FlowStepper.h"
 #include "Config.h"
 #include <Arduino.h>
 
-AccelStepper stepper(AccelStepper::DRIVER, STEP, DIR);
+FlowStepper stepper(STEP, DIR);
 ConfigData config;

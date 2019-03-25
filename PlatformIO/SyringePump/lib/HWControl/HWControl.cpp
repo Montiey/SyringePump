@@ -1,3 +1,4 @@
+// Copyright 2019 Jason Harriot
 #include <Arduino.h>
 #include "Config.h"
 
@@ -82,7 +83,7 @@ bool button(unsigned char pin){
 }
 
 bool db(byte pin){	//Button debounce (WAITS FOR RELEASE)
-	if(millis() - lastSel < DB_THRESH){
+	if(millis() - lastSel < DB_REPEAT){
 		return false;	//Don't accept if pushed too fast since last
 	}
 	if(button(pin)){

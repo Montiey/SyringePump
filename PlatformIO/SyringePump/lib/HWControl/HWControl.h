@@ -1,3 +1,4 @@
+// Copyright 2019 Jason Harriot
 #ifndef HWCONTROL_H
 #define HWCONTROL_H
 

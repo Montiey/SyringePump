@@ -1,123 +1,139 @@
-#include <stdio.h>
+// Copyright 2019 Jason Harriot
 #include "Config.h"
 #include "HWControl.h"
-#include "AccelStepper.h"
-#include "MultiTimer.h"
 #include "SDControl.h"
-#include "Util.h"
 #include <Arduino.h>
 
-bool jogHeld = false;
+unsigned long doMotor(CommandFrame current, CommandFrame next){
+	unsigned long duration;
+	float speed1;
+	float speed2;
 
-void setStepper(float time, float speed){	//Internal function; Given a time interval in seconds and a speed in uL/sec, set a TARGET POSITION in steps.
-	Serial.print(speed, PRINTDEC);
-	Serial.print(" for ");
-	Serial.print(time, PRINTDEC);
+	switch(current.type){
+		case TYPELINEAR:
+			duration = (next.ta - current.ta) * 1000;
 
-	float stepSpeed = speed / config.ULPerStep;
+			speed1 = current.qa / config.ULPerStep;
+			stepper.setSpeed(speed1);
 
-	stepper.move(time * stepSpeed);
-	stepper.setSpeed(stepSpeed);
-	if(stepper.speed() < stepSpeed);
+			Serial.print("Running: ");
+			Serial.print(speed1);
+			Serial.print(" For: ");
+			Serial.println(duration / 1000.0, PRINTDEC);
+		break;
+		case TYPEGRADIENT:
+			stepper.setSpeed(current.qa / config.ULPerStep);
 
-	Serial.print(" Target: ");
-	Serial.print(stepper.targetPosition());
+			duration = (current.tb - current.ta) * 1000;
 
-	Serial.print(" Speed: ");
-	Serial.println(stepper.speed(), PRINTDEC);
+			speed1 = current.qa / config.ULPerStep;
+			speed2 = current.qb / config.ULPerStep;
+
+			float a = (speed2 - speed1) / (duration / 1000.0);
+			stepper.setAccel(a);
+
+			Serial.print("Running: ");
+			Serial.print(speed1, PRINTDEC);
+			Serial.print(" > ");
+			Serial.print(speed2, PRINTDEC);
+			Serial.print(" For: ");
+			Serial.println(duration / 1000.0, PRINTDEC);
+		break;
+	}
+
+	return duration;
 }
 
-unsigned long start = 0;
-
 void enterPump(){
-	HandyTimer t(100);
-	HandyTimer stat(1000);
+	HandyTimer LEDBlink(500);
+	HandyTimer stat(500);
 
-	unsigned int currentIndex = 0;
+	pullSDConfig();
+	dumpCommands();
 
-	CommandFrame nextCommand;
-	pullLineFrame(1, nextCommand);
 	CommandFrame currentCommand;
-	pullLineFrame(0, currentCommand);
+	CommandFrame nextCommand;
+	pullCMDFrame(0, currentCommand);
+	pullCMDFrame(1, nextCommand);
 
-	stepper.setCurrentPosition(0);
+	unsigned int currentIndex = 1;
+
 	setStepping(USTEP_RATE);
+	stepper.setDirection(1);
 
-	setStepper(nextCommand.ta - currentCommand.ta, currentCommand.qa);
+	unsigned long setDuration = doMotor(currentCommand, nextCommand);
 
-	start = millis();
+	unsigned long start = millis();
 
 	while(1){
-		if(t.trigger()){
-			setLED(getColor() == RED ? BLUE : RED);
+		if(LEDBlink.trigger()){
+			setLED(getColor() == BLACK ? BLUE : BLACK);
 		}
-		// if(stat.trigger()){
-		// 	Serial.print("To go: ");
-		// 	Serial.print(stepper.distanceToGo());
-		// 	Serial.println();
-		// }
 		if(db(BUTTONSEL)){
 			while(button(BUTTONSEL));
-			return;
+			break;
 		}
 
-		///
+		switch(currentCommand.type){
+			case TYPELINEAR:
+			stepper.runSpeed();
+			break;
+			case TYPEGRADIENT:
+			stepper.runAccel();
+			break;
+		}
 
-		stepper.runSpeedToPosition();
-
-		if(stepper.distanceToGo() == 0){
-			unsigned long stop = millis();
-			Serial.print("End of command. Elapsed time: ");
-			Serial.println((stop - start) / 1000.0, PRINTDEC);
-
-			if(currentCommand.isLastOnDisk){
-				printf("End of command cycle!");
-				break;
-			}
-			currentIndex++;
+		if(millis() - start >= setDuration){
 			currentCommand = nextCommand;
-			pullLineFrame(currentIndex, nextCommand);
-			switch(currentCommand.type){
-				case TYPENOOP:
 
-				break;
-				case TYPELINEAR:
-					setStepper(nextCommand.ta - currentCommand.ta, currentCommand.qa);
-				break;
-				case TYPEGRADIENT:
-
-				break;
-				default:
-				Serial.println("Invalid command type");
-				break;
+			if(currentCommand.isLastOnDisk){	//Handle the last command
+				if(currentCommand.type == TYPEGRADIENT){	//Don't stop immediately if it's a gradient
+					nextCommand = CommandFrame(TYPELINEAR, true, currentCommand.tb, 0, 0, 0);
+				} else{	//Stop if it's a linear command, however.
+					break;
+				}
+			} else{	//Just get the next command
+				currentIndex++;
+				pullCMDFrame(currentIndex, nextCommand);
 			}
+
+			setDuration = doMotor(currentCommand, nextCommand);
+
 			start = millis();
 		}
 	}
+
+	Serial.println("Pump stopped.");
 }
+
+bool jogFHeld = false;
+bool jogRHeld = false;
 
 void enterJog(){
 	if(button(BUTTONR)) {
-		if(!jogHeld){
-			if(dbHold(BUTTONR)) jogHeld = true;	//Skip hold check for next presses
+		if(!jogRHeld && !jogFHeld && dbHold(BUTTONR)){
+			jogRHeld = true;	//Skip hold check for next presses
+			stepper.setDirection(-1);
+			stepper.setSpeed(JOG_SPEED);
 			setStepping(JOG_USTEP);
-		} else{
-			stepper.setSpeed(-JOG_SPEED * config.direction);
-			setLED(YELLOW);
+			setLED(WHITE);
 		}
-	} else if(button(BUTTONF)) {
-		if(!jogHeld){
-			if(dbHold(BUTTONF)) jogHeld = true;	//Skip hold check for next presses
-			setStepping(JOG_USTEP);
-		} else{
-			stepper.setSpeed(JOG_SPEED * config.direction);
-			setLED(YELLOW);
-		}
-	} else{	//If no buttons
-		stepper.setSpeed(0);
-		setLED(GREEN);
-		jogHeld = false;	//Recheck the buttons for holding next time
+	} else{
+		jogRHeld = false;
 	}
 
-	if(jogHeld) stepper.runSpeed();
+	if(button(BUTTONF)) {
+		if(!jogFHeld && !jogRHeld && dbHold(BUTTONF)){
+			jogFHeld = true;
+			stepper.setDirection(1);
+			stepper.setSpeed(JOG_SPEED);
+			setStepping(JOG_USTEP);
+			setLED(WHITE);
+		}
+	} else{
+		jogFHeld = false;
+	}
+
+	if(jogFHeld || jogRHeld) stepper.runSpeed();
+	else setLED(GREEN);
 }

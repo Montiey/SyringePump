@@ -1,0 +1,10 @@
+ta0 qa0 tb10 qb.06
+ta10 qa.06 tb20 qb.03
+t20 q.03
+ta30 qa.03 tb40 qb.06
+t40 q.06
+ta50 qa.06 tb60 qb0
+ta70 qa.03 tb80 qb.06
+ta80 qa.03 tb90 qb.06
+t90 q.03
+t100 q0
